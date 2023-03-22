@@ -25,4 +25,3 @@ recadosRoutes.put('/editar', [CheckExistUserById], RecadosController.update);
 
 //editar recado para desarquivar (troca da variavel arquivada = true para false)
 recadosRoutes.put('/editar/desarquivar', [CheckExistUserById], RecadosController.desarquiva);
-

@@ -1,8 +1,6 @@
 import { Like, Not } from "typeorm";
 import { RecadosEntity } from "../../../shared/entities/recados.entity";
 
-
-
 export class RecadosRepository {
     static async addRecado(idUsuario: string, titulo: string, descricao: string, data: string): Promise<RecadosEntity | null | false> {
         const newRecado = RecadosEntity.create({ idUsuario, titulo, descricao, data });
