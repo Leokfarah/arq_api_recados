@@ -40,4 +40,18 @@ export class CacheRecadosUsecase {
         await this.cacheSalvarRecadosAtivos(recadosAtivos);
         return recadosAtivos;
     }
+
+    static async cacheDesarquivarRecado(recado: RecadosEntity) {
+        const cache = new CacheRepository();
+        await cache.del(`RECADOS_ATIVOS_${recado.idUsuario}`);
+
+        const recadosAtivos = await RecadosUsecase.getAllRecadosAtivos(recado.idUsuario);
+        const recadosArquivados = await RecadosUsecase.getAllRecadosArquivados(recado.idUsuario);
+
+        if (!recadosAtivos) return null;
+        if (!recadosArquivados) return null;
+
+        await this.cacheSalvarRecadosAtivos(recadosAtivos);
+        return recadosArquivados;
+    }
 }

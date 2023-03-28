@@ -217,13 +217,13 @@ export class RecadosController {
             );
         }
 
-        await this.update(req, res);
+        const arquivados = await CacheRecadosUsecase.cacheDesarquivarRecado(req.body);
 
         return HttpHelper.success(
             res,
             'DB: Recado editado com sucesso',
             302,
-            resposta
+            arquivados
         )
     }
 
