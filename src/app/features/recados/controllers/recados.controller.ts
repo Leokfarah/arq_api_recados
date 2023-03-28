@@ -1,60 +1,83 @@
+import { channel } from "diagnostics_channel";
 import { Request, Response } from "express";
 import { HttpHelper } from "../../../shared/utils/httpHelper/httpHelper";
+import { CacheRecadosUsecase } from "../usecases/cache-recados.usecase";
 import { RecadosUsecase } from "../usecases/recados.usecase";
 
 export class RecadosController {
     static async create(req: Request, res: Response) {
         const { idUsuario, titulo, descricao, data } = req.body;
-
         const addRecado = await RecadosUsecase.adicionarRecado(idUsuario, titulo, descricao, data);
 
         if (!addRecado) {
             return HttpHelper.error(
                 res,
-                'Recado não criado',
+                'DB: Recado não criado',
                 400,
                 null,
             )
         }
 
-        const recados = await RecadosUsecase.getAllRecadosAtivos(idUsuario);
+        const cacheRecados = await CacheRecadosUsecase.cacheAdicionarRecado(addRecado);
+        if (!cacheRecados) {
+            const recados = await RecadosUsecase.getAllRecadosAtivos(idUsuario);
 
-        if (!recados || recados.length === 0) {
+            if (!recados || recados.length === 0) {
+                return HttpHelper.success(
+                    res,
+                    'DB: não há recados ativos',
+                    200,
+                    recados,
+                )
+            }
+
             return HttpHelper.success(
                 res,
-                'não há recados ativos',
-                200,
+                'DB: Recado cadastrado com sucesso',
+                201,
                 recados,
             )
         }
 
         return HttpHelper.success(
             res,
-            'Recado cadastrado com sucesso',
+            'Cache: Recado cadastrado com sucesso',
             201,
-            recados,
+            cacheRecados,
         )
     }
 
     static async getRecadosAtivos(req: Request, res: Response) {
         const { idUsuario } = req.params;
+        const cache = await CacheRecadosUsecase.cacheGetRecadosAtivos(idUsuario);
 
-        const recadosAtivos = await RecadosUsecase.getAllRecadosAtivos(idUsuario);
+        if (!cache) {
+            const recadosAtivos = await RecadosUsecase.getAllRecadosAtivos(idUsuario);
 
-        if (!recadosAtivos || recadosAtivos.length === 0) {
+            if (!recadosAtivos || recadosAtivos.length === 0) {
+                return HttpHelper.success(
+                    res,
+                    'DB: não há recados ativos',
+                    200,
+                    recadosAtivos,
+                )
+            }
+
+            await CacheRecadosUsecase.cacheSalvarRecadosAtivos(recadosAtivos);
+
             return HttpHelper.success(
                 res,
-                'não há recados ativos',
-                200,
+                'DB: Recados encontrados',
+                201,
                 recadosAtivos,
             )
         }
 
         return HttpHelper.success(
             res,
-            'Recados encontrados',
+            'Cache: Recados encontrados',
             201,
-            recadosAtivos,
+            cache,
         )
     }
 
@@ -76,15 +99,24 @@ export class RecadosController {
             if (!recadosArquivados) {
                 return HttpHelper.error(
                     res,
-                    'Não há recados arquivados',
-                    404,
+                    'DB: Não há recados arquivados',
+                    400,
+                    null,
+                )
+            }
+
+            if (recadosArquivados.length === 0) {
+                return HttpHelper.success(
+                    res,
+                    'DB: Recados encontrados',
+                    206,
                     null,
                 )
             }
 
             return HttpHelper.success(
                 res,
-                'Recados encontrados',
+                'DB:Recados encontrados',
                 302,
                 recadosArquivados,
             )
@@ -102,7 +134,6 @@ export class RecadosController {
         const { idUsuario } = req.params;
         const { titulo } = req.query;
         const tituloBusca = String(titulo);
-
         const recadosPorNome = await RecadosUsecase.getAllRecadosPorNome(idUsuario, tituloBusca);
 
         if (!recadosPorNome) {
@@ -126,7 +157,6 @@ export class RecadosController {
         const { idUsuario } = req.params;
         const { titulo } = req.query;
         const tituloBusca = String(titulo);
-
         const recadosArquivadosPorNome = await RecadosUsecase.getAllRecadosArquivadosPorNome(idUsuario, tituloBusca);
 
         if (!recadosArquivadosPorNome) {
@@ -148,47 +178,53 @@ export class RecadosController {
 
     static async update(req: Request, res: Response) {
         const { idUsuario, idRecado, titulo, descricao, data, arquivado, deletado } = req.body;
-
         const updated = await RecadosUsecase.updateRecado(idUsuario, idRecado, titulo, descricao, data, deletado, arquivado);
+        const cache = await CacheRecadosUsecase.cacheUpdateRecado(req.body);
+        if (!cache) {
+            if (!updated) {
+                return HttpHelper.error(
+                    res,
+                    'DB: Recados inexistentes',
+                    404,
+                    null,
+                );
+            }
 
-
-        if (updated === null) {
-            return HttpHelper.error(
+            return HttpHelper.success(
                 res,
-                'Recados inexistentes',
-                404,
-                null,
-            );
+                'DB: Recado editado com sucesso',
+                302,
+                updated
+            )
         }
-
         return HttpHelper.success(
             res,
-            'Recado editado com sucesso',
+            'cache: Recado editado com sucesso',
             302,
-            updated
+            cache
         )
     }
 
     static async desarquiva(req: Request, res: Response) {
         const { idUsuario, idRecado, titulo, descricao, data, arquivado, deletado } = req.body;
-
         const resposta = await RecadosUsecase.desarquivarRecado(idUsuario, idRecado, titulo, descricao, data, deletado, arquivado);
-
-
         if (resposta === null) {
             return HttpHelper.error(
                 res,
-                'Recados inexistentes',
+                'DB: Recados inexistentes',
                 404,
                 null,
             );
         }
 
+        await this.update(req, res);
+
         return HttpHelper.success(
             res,
-            'Recado editado com sucesso',
+            'DB: Recado editado com sucesso',
             302,
             resposta
         )
     }
+
 }

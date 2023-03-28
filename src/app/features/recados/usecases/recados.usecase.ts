@@ -1,4 +1,5 @@
 import { RecadosRepository } from "../repositories/recados.repository";
+import { CacheRecadosUsecase } from "./cache-recados.usecase";
 
 export class RecadosUsecase {
     static async adicionarRecado(idUsuario: string, titulo: string, descricao: string, data: string) {
